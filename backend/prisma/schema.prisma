@@ -1,0 +1,189 @@
+// Prisma schema for 拼饭 App
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户表
+model User {
+  id          String   @id @default(uuid())
+  phone       String   @unique @db.VarChar(20)
+  nickname    String   @db.VarChar(50)
+  avatarUrl   String?  @db.VarChar(500)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关系
+  createdGroups   Group[]         @relation("GroupCreator")
+  groupMembers    GroupMember[]
+  orderItems      OrderItem[]
+  refreshTokens   RefreshToken[]
+
+  @@map("users")
+}
+
+// 刷新令牌表
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique @db.VarChar(500)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// 商家表
+model Restaurant {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(200)
+  address      String?  @db.VarChar(500)
+  phone        String?  @db.VarChar(20)
+  rating       Decimal  @default(5.0) @db.Decimal(2, 1)
+  deliveryFee  Decimal  @default(0) @db.Decimal(10, 2)
+  minOrder     Decimal  @default(0) @db.Decimal(10, 2)
+  discountInfo Json?    // 满减信息，如 {"满100减30": {"threshold": 100, "discount": 30}}
+  isActive     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 关系
+  menuItems MenuItem[]
+  groups    Group[]
+
+  @@map("restaurants")
+}
+
+// 菜品表
+model MenuItem {
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String   @db.VarChar(200)
+  description  String?  @db.Text
+  price        Decimal  @db.Decimal(10, 2)
+  category     String?  @db.VarChar(100)
+  imageUrl     String?  @db.VarChar(500)
+  isAvailable  Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  restaurant       Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  groupOrderItems  GroupOrderItem[]
+  orderItems       OrderItem[]
+
+  @@map("menu_items")
+}
+
+// 拼饭团表
+model Group {
+  id              String    @id @default(uuid())
+  name            String    @db.VarChar(100)
+  creatorId       String
+  restaurantId    String
+  targetCount     Int       @default(5)  // 目标人数（不含发起人）
+  currentCount    Int       @default(0)  // 当前已加入人数
+  status          String    @default("PENDING")  // PENDING/SUCCESS/FAILED/CANCELLED
+  deadline        DateTime
+  inviteCode      String    @unique @db.VarChar(10)
+  totalAmount     Decimal   @default(0) @db.Decimal(10, 2)
+  discountAmount  Decimal   @default(0) @db.Decimal(10, 2)
+  finalAmount     Decimal   @default(0) @db.Decimal(10, 2)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  creator     User           @relation("GroupCreator", fields: [creatorId], references: [id])
+  restaurant  Restaurant     @relation(fields: [restaurantId], references: [id])
+  members     GroupMember[]
+  orderItems  GroupOrderItem[]
+  orders      Order[]
+
+  @@index([inviteCode])
+  @@index([status])
+  @@index([deadline])
+  @@map("groups")
+}
+
+// 拼饭团成员表
+model GroupMember {
+  id          String   @id @default(uuid())
+  groupId     String
+  userId      String
+  itemsAmount Decimal  @default(0) @db.Decimal(10, 2)
+  payAmount   Decimal  @default(0) @db.Decimal(10, 2)
+  status      String   @default("JOINED")  // JOINED/PAID/CANCELLED
+  joinedAt    DateTime @default(now())
+
+  group      Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user       User              @relation(fields: [userId], references: [id])
+  orderItems GroupOrderItem[]
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+// 拼饭团菜品表
+model GroupOrderItem {
+  id         String   @id @default(uuid())
+  groupId    String
+  memberId   String
+  menuItemId String?
+  name       String   @db.VarChar(200)
+  price      Decimal  @db.Decimal(10, 2)
+  quantity   Int      @default(1)
+  remark     String?  @db.VarChar(200)
+  createdAt  DateTime @default(now())
+
+  group     Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member    GroupMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  menuItem  MenuItem?  @relation(fields: [menuItemId], references: [id])
+
+  @@map("group_order_items")
+}
+
+// 订单表
+model Order {
+  id             String    @id @default(uuid())
+  groupId        String?
+  orderNo        String    @unique @db.VarChar(50)
+  totalAmount    Decimal   @db.Decimal(10, 2)
+  discountAmount Decimal   @default(0) @db.Decimal(10, 2)
+  finalAmount    Decimal   @db.Decimal(10, 2)
+  status         String    @default("PENDING")  // PENDING/PAID/ACCEPTED/DELIVERING/DELIVERED/COMPLETED/REFUNDED
+  payTime        DateTime?
+  deliveryTime   DateTime?
+  completedTime  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  group Group?  @relation(fields: [groupId], references: [id])
+  items OrderItem[]
+
+  @@index([orderNo])
+  @@index([status])
+  @@map("orders")
+}
+
+// 订单项表
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  userId     String
+  menuItemId String?
+  name       String   @db.VarChar(200)
+  price      Decimal  @db.Decimal(10, 2)
+  quantity   Int      @default(1)
+  remark     String?  @db.VarChar(200)
+  createdAt  DateTime @default(now())
+
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id])
+
+  @@map("order_items")
+}

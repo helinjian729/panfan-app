@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell *)",
+      "Bash(Get-ChildItem -Path . -Force -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object Name, Mode)",
+      "Bash(Get-ChildItem -Path \"D:\\\\AI-project\\\\agents\" -Force)",
+      "Bash(Format-List Name, Mode)",
+      "Bash(dir \"D:\\\\AI-project\\\\agents\")",
+      "Skill(update-config)",
+      "Read(D:\\AI-project\\agents\\backend\\*)",
+      "Write(D:\\AI-project\\agents\\backend\\*)",
+      "Read(D:\\AI-project\\agents\\ios\\*)",
+      "Write(D:\\AI-project\\agents\\ios\\*)",
+      "Bash(npm *)",
+      "Bash(docker --version)",
+      "Bash(psql --version)",
+      "Bash(Get-Service -Name \"*postgres*\")",
+      "Bash(Select-Object -First 5)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}
