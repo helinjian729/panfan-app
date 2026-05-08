@@ -5,7 +5,6 @@ import type { CartItem, MenuItem } from '@/types'
 export const useCartStore = defineStore('cart', () => {
   const items = ref<CartItem[]>([])
   const restaurantId = ref<string | null>(null)
-  const restaurantName = ref<string | null>(null)
 
   // 计算总价
   const totalPrice = computed(() => {
@@ -71,7 +70,6 @@ export const useCartStore = defineStore('cart', () => {
     }
     if (items.value.length === 0) {
       restaurantId.value = null
-      restaurantName.value = null
     }
   }
 
@@ -79,7 +77,6 @@ export const useCartStore = defineStore('cart', () => {
   const clearCart = () => {
     items.value = []
     restaurantId.value = null
-    restaurantName.value = null
   }
 
   // 获取指定餐厅的凑单进度
@@ -90,7 +87,6 @@ export const useCartStore = defineStore('cart', () => {
   return {
     items,
     restaurantId,
-    restaurantName,
     totalPrice,
     totalCount,
     isInCart,

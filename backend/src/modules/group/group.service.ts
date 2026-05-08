@@ -1,11 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, LessThan } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Group, GroupStatus } from './entities/group.entity';
 import { GroupMember, MemberStatus } from './entities/group-member.entity';
 import { GroupOrderItem } from './entities/group-order-item.entity';
 import { RestaurantService } from '../restaurant/restaurant.service';
+
+const DEFAULT_TARGET_COUNT = 5;
+const DEFAULT_EXPIRE_MINUTES = 30;
 
 @Injectable()
 export class GroupService {
@@ -20,36 +23,31 @@ export class GroupService {
     private dataSource: DataSource,
   ) {}
 
-  // 生成6位邀请码
   private generateInviteCode(): string {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
-  // 发起拼饭团
   async create(userId: string, dto: any): Promise<Group> {
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // 验证商家存在
       const restaurant = await this.restaurantService.findById(dto.restaurantId);
       if (!restaurant) {
         throw new NotFoundException('商家不存在');
       }
 
-      // 创建拼饭团
       const group = queryRunner.manager.create(Group, {
         name: dto.name,
         creatorId: userId,
         restaurantId: dto.restaurantId,
-        targetCount: dto.targetCount || 5,
-        deadline: new Date(Date.now() + (dto.expireMinutes || 30) * 60 * 1000),
+        targetCount: dto.targetCount || DEFAULT_TARGET_COUNT,
+        deadline: new Date(Date.now() + (dto.expireMinutes || DEFAULT_EXPIRE_MINUTES) * 60 * 1000),
         inviteCode: this.generateInviteCode(),
       });
       await queryRunner.manager.save(group);
 
-      // 创建发起人为第一个成员
       const member = queryRunner.manager.create(GroupMember, {
         groupId: group.id,
         userId: userId,
@@ -58,7 +56,6 @@ export class GroupService {
       await queryRunner.manager.save(member);
 
       await queryRunner.commitTransaction();
-
       return this.findById(group.id, userId);
     } catch (error) {
       await queryRunner.rollbackTransaction();
@@ -68,7 +65,6 @@ export class GroupService {
     }
   }
 
-  // 加入拼饭团
   async join(userId: string, inviteCode: string): Promise<Group> {
     const group = await this.groupRepository.findOne({
       where: { inviteCode: inviteCode.toUpperCase() },
@@ -86,7 +82,6 @@ export class GroupService {
       throw new BadRequestException('拼饭团已过期');
     }
 
-    // 检查是否已是成员
     const existingMember = await this.memberRepository.findOne({
       where: { groupId: group.id, userId },
     });
@@ -95,12 +90,10 @@ export class GroupService {
       throw new BadRequestException('您已在该拼饭团中');
     }
 
-    // 检查人数是否已满
     if (group.currentCount >= group.targetCount) {
       throw new BadRequestException('拼饭团人数已满');
     }
 
-    // 添加成员
     const member = this.memberRepository.create({
       groupId: group.id,
       userId,
@@ -108,16 +101,13 @@ export class GroupService {
     });
     await this.memberRepository.save(member);
 
-    // 更新拼饭团当前人数
-    group.currentCount = await this.memberRepository.count({
-      where: { groupId: group.id, status: MemberStatus.JOINED },
-    });
+    // Increment directly instead of recounting
+    group.currentCount += 1;
     await this.groupRepository.save(group);
 
     return this.findById(group.id, userId);
   }
 
-  // 获取用户的拼饭团列表
   async findByUser(userId: string, type: 'created' | 'joined'): Promise<Group[]> {
     if (type === 'created') {
       return this.groupRepository.find({
@@ -134,19 +124,15 @@ export class GroupService {
     }
   }
 
-  // 获取附近可加入的拼饭团
   async findNearby(): Promise<Group[]> {
     return this.groupRepository.find({
-      where: {
-        status: GroupStatus.PENDING,
-      },
+      where: { status: GroupStatus.PENDING },
       relations: ['restaurant', 'creator', 'members'],
       order: { createdAt: 'DESC' },
       take: 20,
     });
   }
 
-  // 获取拼饭团详情
   async findById(id: string, userId?: string): Promise<any> {
     const group = await this.groupRepository.findOne({
       where: { id },
@@ -157,13 +143,11 @@ export class GroupService {
       throw new NotFoundException('拼饭团不存在');
     }
 
-    // 获取菜品详情
     const items = await this.orderItemRepository.find({
       where: { groupId: id },
       relations: ['member', 'menuItem'],
     });
 
-    // 计算凑单
     const discount = this.calculateDiscount(group, items);
 
     return {
@@ -177,7 +161,6 @@ export class GroupService {
     };
   }
 
-  // 取消拼饭团（仅发起人）
   async cancel(groupId: string, userId: string): Promise<Group> {
     const group = await this.groupRepository.findOne({ where: { id: groupId } });
 
@@ -195,7 +178,6 @@ export class GroupService {
     return group;
   }
 
-  // 退出拼饭团（成员）
   async leave(groupId: string, userId: string): Promise<Group> {
     const group = await this.groupRepository.findOne({ where: { id: groupId } });
 
@@ -218,16 +200,13 @@ export class GroupService {
     member.status = MemberStatus.CANCELLED;
     await this.memberRepository.save(member);
 
-    // 更新拼饭团人数
-    group.currentCount = await this.memberRepository.count({
-      where: { groupId, status: MemberStatus.JOINED },
-    });
+    // Decrement directly instead of recounting
+    group.currentCount = Math.max(0, group.currentCount - 1);
     await this.groupRepository.save(group);
 
     return this.findById(groupId, userId);
   }
 
-  // 获取拼饭团菜品清单
   async getGroupItems(groupId: string): Promise<GroupOrderItem[]> {
     return this.orderItemRepository.find({
       where: { groupId },
@@ -236,7 +215,6 @@ export class GroupService {
     });
   }
 
-  // 添加菜品到拼饭团
   async addItem(groupId: string, userId: string, dto: any): Promise<GroupOrderItem> {
     const group = await this.groupRepository.findOne({ where: { id: groupId } });
 
@@ -248,7 +226,6 @@ export class GroupService {
       throw new BadRequestException('拼饭团已结束');
     }
 
-    // 获取成员的member记录
     const member = await this.memberRepository.findOne({
       where: { groupId, userId, status: MemberStatus.JOINED },
     });
@@ -257,17 +234,13 @@ export class GroupService {
       throw new BadRequestException('您不在该拼饭团中');
     }
 
-    // 获取菜品信息
-    const menuItem = await this.restaurantService.findMenuByRestaurantId(
-      group.restaurantId,
-    );
+    const menuItem = await this.restaurantService.findMenuByRestaurantId(group.restaurantId);
     const item = menuItem.find((i) => i.id === dto.menuItemId);
 
     if (!item) {
       throw new NotFoundException('菜品不存在');
     }
 
-    // 创建订单项
     const orderItem = this.orderItemRepository.create({
       groupId,
       memberId: member.id,
@@ -280,17 +253,14 @@ export class GroupService {
 
     await this.orderItemRepository.save(orderItem);
 
-    // 更新成员金额
     member.itemsAmount = await this.calculateMemberAmount(member.id);
     await this.memberRepository.save(member);
 
-    // 更新拼饭团总金额
     await this.updateGroupAmount(groupId);
 
     return orderItem;
   }
 
-  // 删除拼饭团菜品
   async removeItem(groupId: string, itemId: string, userId: string): Promise<void> {
     const item = await this.orderItemRepository.findOne({
       where: { id: itemId },
@@ -307,26 +277,20 @@ export class GroupService {
 
     await this.orderItemRepository.delete(itemId);
 
-    // 更新成员金额
     const member = await this.memberRepository.findOne({
       where: { id: item.memberId },
     });
     member.itemsAmount = await this.calculateMemberAmount(member.id);
     await this.memberRepository.save(member);
 
-    // 更新拼饭团总金额
     await this.updateGroupAmount(groupId);
   }
 
-  // 计算成员菜品金额
   private async calculateMemberAmount(memberId: string): Promise<number> {
-    const items = await this.orderItemRepository.find({
-      where: { memberId },
-    });
+    const items = await this.orderItemRepository.find({ where: { memberId } });
     return items.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0);
   }
 
-  // 更新拼饭团总金额
   private async updateGroupAmount(groupId: string): Promise<void> {
     const group = await this.groupRepository.findOne({ where: { id: groupId } });
     const members = await this.memberRepository.find({
@@ -343,16 +307,13 @@ export class GroupService {
     await this.groupRepository.save(group);
   }
 
-  // 计算凑单进度
   async getDiscountCalculation(groupId: string): Promise<any> {
     const group = await this.groupRepository.findOne({
       where: { id: groupId },
       relations: ['restaurant'],
     });
 
-    const items = await this.orderItemRepository.find({
-      where: { groupId },
-    });
+    const items = await this.orderItemRepository.find({ where: { groupId } });
 
     return this.calculateDiscount(group, items);
   }
@@ -394,34 +355,37 @@ export class GroupService {
   }
 
   private calculateDiscountAmount(totalAmount: number, restaurantId: string): number {
-    // 这里需要获取restaurant的discountInfo
-    // 简化实现
-    if (totalAmount >= 200) return 50;
-    if (totalAmount >= 150) return 40;
-    if (totalAmount >= 120) return 35;
-    if (totalAmount >= 100) return 30;
-    if (totalAmount >= 80) return 20;
-    if (totalAmount >= 50) return 10;
-    return 0;
+    // Returns 0 if totalAmount < 50, otherwise returns the highest applicable discount
+    // Thresholds are: 50->10, 80->20, 100->30, 120->35, 150->40, 200->50
+    const thresholds = [
+      { min: 50, discount: 10 },
+      { min: 80, discount: 20 },
+      { min: 100, discount: 30 },
+      { min: 120, discount: 35 },
+      { min: 150, discount: 40 },
+      { min: 200, discount: 50 },
+    ];
+
+    let applicableDiscount = 0;
+    for (const t of thresholds) {
+      if (totalAmount >= t.min) {
+        applicableDiscount = t.discount;
+      }
+    }
+    return applicableDiscount;
   }
 
-  // 定时任务：检查过期的拼饭团
   @Cron(CronExpression.EVERY_MINUTE)
   async handleExpiredGroups(): Promise<void> {
     const expiredGroups = await this.groupRepository.find({
       where: {
         status: GroupStatus.PENDING,
-        deadline: new Date(),
+        deadline: LessThan(new Date()),
       },
     });
 
     for (const group of expiredGroups) {
-      // 检查是否满足成团条件（当前人数 > 1）
-      if (group.currentCount > 0) {
-        group.status = GroupStatus.SUCCESS;
-      } else {
-        group.status = GroupStatus.FAILED;
-      }
+      group.status = group.currentCount > 0 ? GroupStatus.SUCCESS : GroupStatus.FAILED;
       await this.groupRepository.save(group);
       console.log(`拼饭团 ${group.id} 已${group.status === GroupStatus.SUCCESS ? '成团' : '失败'}`);
     }
