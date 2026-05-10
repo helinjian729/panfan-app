@@ -14,8 +14,8 @@ export const useOrderStore = defineStore('order', () => {
     isLoading.value = true
     try {
       const response = await createOrder(data)
-      currentOrder.value = response.data
-      return response.data
+      currentOrder.value = response.data.data
+      return response.data.data
     } finally {
       isLoading.value = false
     }
@@ -26,9 +26,9 @@ export const useOrderStore = defineStore('order', () => {
     isLoading.value = true
     try {
       const response = await getOrders(params)
-      // 后端直接返回数组
-      orders.value = response.data
-      total.value = response.data.length
+      // 后端返回 { code, message, data: [...], timestamp }
+      orders.value = response.data.data
+      total.value = response.data.data.length
     } finally {
       isLoading.value = false
     }
@@ -39,7 +39,7 @@ export const useOrderStore = defineStore('order', () => {
     isLoading.value = true
     try {
       const response = await getOrderById(id)
-      currentOrder.value = response.data
+      currentOrder.value = response.data.data
     } finally {
       isLoading.value = false
     }
@@ -50,8 +50,8 @@ export const useOrderStore = defineStore('order', () => {
     isLoading.value = true
     try {
       const response = await payOrder(id, { paymentMethod })
-      currentOrder.value = response.data
-      return response.data
+      currentOrder.value = response.data.data
+      return response.data.data
     } finally {
       isLoading.value = false
     }

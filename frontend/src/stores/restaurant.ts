@@ -19,9 +19,13 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     isLoading.value = true
     try {
       const response = await getRestaurants(params)
-      // 后端直接返回数组
-      restaurants.value = response.data
-      total.value = response.data.length
+      // 后端返回 { code, message, data: [...], timestamp }
+      restaurants.value = response.data.data || []
+      total.value = (response.data.data || []).length
+    } catch (error) {
+      console.error('Search error:', error)
+      restaurants.value = []
+      total.value = 0
     } finally {
       isLoading.value = false
     }
@@ -32,7 +36,7 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     isLoading.value = true
     try {
       const response = await getRestaurantById(id)
-      currentRestaurant.value = response.data
+      currentRestaurant.value = response.data.data
     } finally {
       isLoading.value = false
     }
@@ -43,7 +47,7 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     isLoading.value = true
     try {
       const response = await getRestaurantMenu(id)
-      menuItems.value = response.data
+      menuItems.value = response.data.data
     } finally {
       isLoading.value = false
     }
@@ -54,7 +58,7 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     isLoading.value = true
     try {
       const response = await getDiscountInfo(id)
-      discountInfo.value = response.data
+      discountInfo.value = response.data.data
     } finally {
       isLoading.value = false
     }

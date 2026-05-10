@@ -42,8 +42,8 @@ export class GroupService {
         name: dto.name,
         creatorId: userId,
         restaurantId: dto.restaurantId,
-        targetCount: dto.targetCount || DEFAULT_TARGET_COUNT,
-        deadline: new Date(Date.now() + (dto.expireMinutes || DEFAULT_EXPIRE_MINUTES) * 60 * 1000),
+        targetCount: dto.maxMembers || dto.targetCount || DEFAULT_TARGET_COUNT,
+        deadline: dto.deadline ? new Date(dto.deadline) : new Date(Date.now() + (dto.expireMinutes || DEFAULT_EXPIRE_MINUTES) * 60 * 1000),
         inviteCode: this.generateInviteCode(),
       });
       await queryRunner.manager.save(group);

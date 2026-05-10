@@ -35,99 +35,132 @@ const goToJoinGroup = () => {
 
 const getStatusText = (status: string) => {
   const statusMap: Record<string, string> = {
-    pending: '招募中',
-    full: '已满员',
-    completed: '已完成',
-    cancelled: '已取消',
+    PENDING: '招募中',
+    SUCCESS: '已满员',
+    FAILED: '已失败',
+    CANCELLED: '已取消',
   }
   return statusMap[status] || status
 }
 
 const getStatusClass = (status: string) => {
   const classMap: Record<string, string> = {
-    pending: 'status-pending',
-    full: 'status-full',
-    completed: 'status-completed',
-    cancelled: 'status-cancelled',
+    PENDING: 'status-pending',
+    SUCCESS: 'status-success',
+    FAILED: 'status-cancelled',
+    CANCELLED: 'status-cancelled',
   }
   return classMap[status] || ''
+}
+
+const getProgress = (group: any) => {
+  if (!group.totalAmount || group.totalAmount == 0) return 0
+  return Math.min((Number(group.totalAmount) / Number(group.totalAmount)) * 100, 100)
 }
 </script>
 
 <template>
   <div class="groups-page">
+    <!-- Header -->
     <header class="header">
-      <button class="back-btn" @click="router.push('/home')">←</button>
-      <h1 class="title">我的拼饭团</h1>
-      <button class="add-btn" @click="goToJoinGroup">+加入</button>
+      <button class="header-back" @click="router.push('/home')">←</button>
+      <h1 class="header-title">我的拼饭团</h1>
+      <button class="header-action" @click="goToJoinGroup">+</button>
     </header>
 
-    <!-- 标签切换 -->
-    <div class="tab-bar">
-      <button
-        :class="['tab-btn', { active: activeTab === 'created' }]"
-        @click="handleTabChange('created')"
-      >
-        我发起的
-      </button>
-      <button
-        :class="['tab-btn', { active: activeTab === 'joined' }]"
-        @click="handleTabChange('joined')"
-      >
-        我加入的
-      </button>
+    <!-- Tab Bar -->
+    <div class="tab-section">
+      <div class="tab-bar">
+        <button
+          :class="['tab-item', { active: activeTab === 'created' }]"
+          @click="handleTabChange('created')"
+        >
+          我发起的
+        </button>
+        <button
+          :class="['tab-item', { active: activeTab === 'joined' }]"
+          @click="handleTabChange('joined')"
+        >
+          我加入的
+        </button>
+      </div>
     </div>
 
-    <!-- 拼饭团列表 -->
+    <!-- Groups List -->
     <div class="groups-list">
       <div
-        v-for="group in activeTab === 'created' ? groupStore.createdGroups : groupStore.joinedGroups"
+        v-for="(group, index) in activeTab === 'created' ? groupStore.createdGroups : groupStore.joinedGroups"
         :key="group.id"
         class="group-card"
+        :style="{ animationDelay: `${index * 50}ms` }"
         @click="goToGroupDetail(group.id)"
       >
         <div class="group-header">
-          <h3 class="group-name">{{ group.name }}</h3>
-          <span :class="['status', getStatusClass(group.status)]">
-            {{ getStatusText(group.status) }}
-          </span>
-        </div>
-        <div class="group-info">
-          <div class="info-item">
-            <span class="label">目标金额</span>
-            <span class="value">¥{{ group.targetAmount }}</span>
+          <div class="group-title-row">
+            <h3 class="group-name">{{ group.name }}</h3>
+            <span :class="['status-badge', getStatusClass(group.status)]">
+              {{ getStatusText(group.status) }}
+            </span>
           </div>
-          <div class="info-item">
-            <span class="label">当前金额</span>
-            <span class="value">¥{{ group.currentAmount }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">成员</span>
-            <span class="value">{{ group.memberCount }}/{{ group.maxMembers }}</span>
+          <div class="group-code-row">
+            <span class="code-label">邀请码</span>
+            <span class="code-value">{{ group.inviteCode }}</span>
           </div>
         </div>
-        <div class="progress-bar">
-          <div
-            class="progress-fill"
-            :style="{ width: `${(group.currentAmount / group.targetAmount) * 100}%` }"
-          ></div>
+
+        <div class="group-stats">
+          <div class="stat-item">
+            <span class="stat-value">¥{{ group.totalAmount }}</span>
+            <span class="stat-label">目标金额</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ group.currentCount || 0 }}</span>
+            <span class="stat-label">当前人数</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-value">{{ group.targetCount }}</span>
+            <span class="stat-label">目标人数</span>
+          </div>
         </div>
-        <div class="invite-code">
-          邀请码: <span class="code">{{ group.inviteCode }}</span>
+
+        <div class="progress-section">
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              :style="{ width: '100%' }"
+            ></div>
+          </div>
+        </div>
+
+        <div v-if="group.restaurant" class="group-restaurant">
+          <span class="restaurant-icon">🍱</span>
+          <span class="restaurant-name">{{ group.restaurant.name }}</span>
         </div>
       </div>
 
       <div v-if="(activeTab === 'created' ? groupStore.createdGroups : groupStore.joinedGroups).length === 0" class="empty-state">
-        <span class="empty-icon">👥</span>
-        <p>暂无拼饭团</p>
-        <button class="create-btn" @click="goToCreateGroup">发起拼饭团</button>
+        <div class="empty-icon">👥</div>
+        <div class="empty-title">暂无拼饭团</div>
+        <div class="empty-desc">快发起或加入一个拼饭团吧</div>
+        <button class="btn btn-primary" @click="goToCreateGroup">发起拼饭团</button>
+      </div>
+
+      <div v-if="groupStore.isLoading" class="loading-state">
+        <div class="loading-spinner"></div>
+        <span>加载中...</span>
       </div>
     </div>
 
-    <!-- 底部操作栏 -->
+    <!-- Bottom Bar -->
     <div class="bottom-bar">
-      <button class="action-btn create" @click="goToCreateGroup">发起新拼饭团</button>
-      <button class="action-btn join" @click="goToJoinGroup">加入拼饭团</button>
+      <button class="action-btn create" @click="goToCreateGroup">
+        <span class="btn-icon">+</span>
+        发起拼饭团
+      </button>
+      <button class="action-btn join" @click="goToJoinGroup">
+        <span class="btn-icon">›</span>
+        加入拼饭团
+      </button>
     </div>
   </div>
 </template>
@@ -136,234 +169,373 @@ const getStatusClass = (status: string) => {
 .groups-page {
   min-height: 100vh;
   min-height: 100dvh;
-  background: #FFF9F5;
-  padding-bottom: 80px;
+  background: var(--bg-primary);
+  padding-bottom: 100px;
 }
 
+/* Header */
 .header {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  background: #fff;
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
-.back-btn {
-  width: 32px;
-  height: 32px;
-  background: #f5f5f5;
+.header-back {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
   border: none;
-  border-radius: 50%;
-  font-size: 18px;
+  border-radius: var(--radius-full);
+  font-size: 1rem;
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.title {
+.header-back:hover {
+  background: var(--color-accent);
+  color: var(--text-inverse);
+}
+
+.header-title {
   flex: 1;
   text-align: center;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
-.add-btn {
-  width: 32px;
-  height: 32px;
-  background: #FF6B35;
-  color: #fff;
+.header-action {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-accent);
   border: none;
-  border-radius: 50%;
-  font-size: 20px;
+  border-radius: var(--radius-full);
+  font-size: 1.25rem;
+  color: var(--text-inverse);
   cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.header-action:hover {
+  background: #5558E3;
+  box-shadow: var(--shadow-glow);
+}
+
+/* Tab Section */
+.tab-section {
+  padding: var(--space-4) var(--space-5);
 }
 
 .tab-bar {
   display: flex;
-  padding: 12px 16px;
-  background: #fff;
-  gap: 16px;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
 }
 
-.tab-btn {
+.tab-item {
   flex: 1;
-  padding: 12px;
-  background: #f5f5f5;
-  color: #666;
+  padding: var(--space-3);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+  background: transparent;
   border: none;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all var(--transition-fast);
 }
 
-.tab-btn.active {
-  background: #FF6B35;
-  color: #fff;
+.tab-item:hover {
+  background: var(--bg-tertiary);
 }
 
+.tab-item.active {
+  background: var(--color-accent);
+  color: var(--text-inverse);
+}
+
+/* Groups List */
 .groups-list {
-  padding: 16px;
+  padding: var(--space-4) var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-4);
 }
 
 .group-card {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: all var(--transition-fast);
+  animation: fadeIn 0.3s ease-out backwards;
+}
+
+.group-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
 .group-card:active {
   transform: scale(0.98);
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .group-header {
+  margin-bottom: var(--space-4);
+}
+
+.group-title-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-2);
 }
 
 .group-name {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.status {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: var(--radius-full);
 }
 
 .status-pending {
-  background: #E3F2FD;
-  color: #2196F3;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--color-accent);
 }
 
-.status-full {
-  background: #FFF3E0;
-  color: #FF9800;
-}
-
-.status-completed {
-  background: #E8F5E9;
-  color: #4CAF50;
+.status-success {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--color-success);
 }
 
 .status-cancelled {
-  background: #FFEBEE;
-  color: #F44336;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
 }
 
-.group-info {
+.group-code-row {
   display: flex;
-  gap: 16px;
-  margin-bottom: 12px;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-.info-item {
+.code-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.code-value {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: rgba(99, 102, 241, 0.1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+/* Group Stats */
+.group-stats {
   display: flex;
-  flex-direction: column;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
-.label {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 4px;
+.stat-item {
+  flex: 1;
+  text-align: center;
+  padding: var(--space-3);
+  background: var(--bg-primary);
+  border-radius: var(--radius-md);
 }
 
-.value {
-  font-size: 14px;
-  color: #333;
+.stat-value {
+  display: block;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.stat-label {
+  font-size: 0.625rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+}
+
+/* Progress Section */
+.progress-section {
+  margin-bottom: var(--space-3);
 }
 
 .progress-bar {
   height: 6px;
-  background: #f5f5f5;
-  border-radius: 3px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-full);
   overflow: hidden;
-  margin-bottom: 12px;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #FF6B35 0%, #FF8F6B 100%);
-  border-radius: 3px;
-  transition: width 0.3s;
+  background: linear-gradient(90deg, var(--color-accent), #818CF8);
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slow);
 }
 
-.invite-code {
-  font-size: 12px;
-  color: #666;
+/* Group Restaurant */
+.group-restaurant {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-light);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 
-.code {
-  color: #FF6B35;
-  font-weight: 500;
+.restaurant-icon {
+  font-size: 0.875rem;
 }
 
+/* Empty State */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 60px 0;
+  justify-content: center;
+  padding: var(--space-12) 0;
+  text-align: center;
 }
 
 .empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
+  font-size: 3rem;
+  margin-bottom: var(--space-4);
+  opacity: 0.5;
 }
 
-.empty-state p {
-  color: #999;
-  margin-bottom: 24px;
+.empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
 }
 
-.create-btn {
-  padding: 12px 32px;
-  background: linear-gradient(135deg, #FF6B35 0%, #FF8F6B 100%);
-  color: #fff;
-  border: none;
-  border-radius: 24px;
-  font-size: 14px;
-  cursor: pointer;
+.empty-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-6);
 }
 
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) 0;
+  gap: var(--space-3);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-light);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Bottom Bar */
 .bottom-bar {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   display: flex;
-  gap: 12px;
-  padding: 12px 16px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  background: #fff;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: var(--bg-secondary);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
   z-index: 100;
 }
 
 .action-btn {
   flex: 1;
-  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
   border: none;
-  border-radius: 24px;
-  font-size: 14px;
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
 .action-btn.create {
-  background: linear-gradient(135deg, #FF6B35 0%, #FF8F6B 100%);
-  color: #fff;
+  background: var(--color-accent);
+  color: var(--text-inverse);
+}
+
+.action-btn.create:hover {
+  background: #5558E3;
+  box-shadow: var(--shadow-glow);
 }
 
 .action-btn.join {
-  background: #FFF3EF;
-  color: #FF6B35;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.action-btn.join:hover {
+  background: var(--border-light);
+}
+
+.btn-icon {
+  font-size: 1rem;
 }
 </style>

@@ -50,13 +50,21 @@ const handleDeleteItem = async (itemId: string) => {
 
 const getStatusText = (status: string) => {
   const statusMap: Record<string, string> = {
-    pending: '招募中',
-    full: '已满员',
-    completed: '已完成',
-    cancelled: '已取消',
+    PENDING: '招募中',
+    SUCCESS: '已满员',
+    FAILED: '已失败',
+    CANCELLED: '已取消',
   }
   return statusMap[status] || status
 }
+
+const getProgress = computed(() => {
+  const group = groupStore.currentGroup
+  if (!group) return 0
+  const target = Number(group.totalAmount) || 0
+  if (target === 0) return 0
+  return Math.min((Number(group.totalAmount) / target) * 100, 100)
+})
 </script>
 
 <template>
@@ -77,26 +85,26 @@ const getStatusText = (status: string) => {
         <div class="status-info">
           <div class="info-item">
             <span class="label">目标金额</span>
-            <span class="value">¥{{ groupStore.currentGroup.targetAmount }}</span>
+            <span class="value">¥{{ groupStore.currentGroup.totalAmount }}</span>
           </div>
           <div class="info-item">
             <span class="label">当前金额</span>
-            <span class="value highlight">¥{{ groupStore.currentGroup.currentAmount }}</span>
+            <span class="value highlight">¥{{ groupStore.calculateInfo?.currentAmount || 0 }}</span>
           </div>
           <div class="info-item">
             <span class="label">成员</span>
-            <span class="value">{{ groupStore.currentGroup.memberCount }}/{{ groupStore.currentGroup.maxMembers }}</span>
+            <span class="value">{{ groupStore.currentGroup.currentCount || 0 }}/{{ groupStore.currentGroup.targetCount }}</span>
           </div>
         </div>
         <div class="progress-section">
           <div class="progress-bar">
             <div
               class="progress-fill"
-              :style="{ width: `${(groupStore.currentGroup.currentAmount / groupStore.currentGroup.targetAmount) * 100}%` }"
+              :style="{ width: `${groupStore.calculateInfo?.progress || 0}%` }"
             ></div>
           </div>
           <span class="progress-text">
-            {{ ((groupStore.currentGroup.currentAmount / groupStore.currentGroup.targetAmount) * 100).toFixed(0) }}%
+            {{ (groupStore.calculateInfo?.progress || 0).toFixed(0) }}%
           </span>
         </div>
         <div class="invite-code">

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsNumber, IsOptional, Min, Max } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber, IsOptional, Min, Max, IsDateString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateGroupDto {
@@ -12,14 +12,32 @@ export class CreateGroupDto {
   @IsString()
   restaurantId: string;
 
-  @ApiProperty({ description: '目标人数', default: 5 })
+  @ApiPropertyOptional({ description: '目标凑单金额', required: false })
+  @IsOptional()
+  @IsNumber()
+  targetAmount?: number;
+
+  @ApiPropertyOptional({ description: '最大成员数', default: 5, required: false })
+  @IsOptional()
+  @IsNumber()
+  @Min(2)
+  @Max(20)
+  maxMembers?: number;
+
+  @ApiPropertyOptional({ description: '截止时间 ISO 字符串', required: false })
+  @IsOptional()
+  @IsDateString()
+  deadline?: string;
+
+  // 兼容旧字段
+  @ApiPropertyOptional({ description: '目标人数（旧字段，兼容）', required: false })
   @IsOptional()
   @IsNumber()
   @Min(1)
   @Max(20)
   targetCount?: number;
 
-  @ApiProperty({ description: '截止时间（分钟）', default: 30 })
+  @ApiPropertyOptional({ description: '过期分钟数（旧字段，兼容）', required: false })
   @IsOptional()
   @IsNumber()
   @Min(5)

@@ -73,6 +73,30 @@ const router = createRouter({
       component: () => import('@/views/OrderConfirmView.vue'),
       meta: { requiresAuth: true },
     },
+    {
+      path: '/profile',
+      name: 'Profile',
+      component: () => import('@/views/ProfileView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/addresses',
+      name: 'AddressList',
+      component: () => import('@/views/AddressListView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/address/edit',
+      name: 'AddressEdit',
+      component: () => import('@/views/AddressEditView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/address/edit/:id',
+      name: 'AddressEditWithId',
+      component: () => import('@/views/AddressEditView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

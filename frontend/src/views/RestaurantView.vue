@@ -3,13 +3,11 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRestaurantStore } from '@/stores/restaurant'
 import { useCartStore } from '@/stores/cart'
-import { useToast } from '@/hooks/useToast'
 
 const route = useRoute()
 const router = useRouter()
 const restaurantStore = useRestaurantStore()
 const cartStore = useCartStore()
-const { showToast } = useToast()
 
 const activeCategory = ref('all')
 const restaurantId = route.params.id as string
@@ -41,11 +39,9 @@ const filteredMenuItems = computed(() => {
 
 const handleAddToCart = (item: any) => {
   if (cartStore.restaurantId && cartStore.restaurantId !== restaurantId) {
-    showToast({ message: '已清空其他餐厅的购物车' })
     cartStore.clearCart()
   }
   cartStore.addItem(item)
-  showToast({ message: '已添加至购物车' })
 }
 
 const handleUpdateQuantity = (item: any, delta: number) => {
@@ -69,108 +65,108 @@ const goToCart = () => {
 const goToCreateGroup = () => {
   router.push('/group/create')
 }
+
+const getCartTotal = () => {
+  return cartStore.items
+    .filter(item => item.menuItem.restaurantId === restaurantId)
+    .reduce((sum, item) => sum + item.menuItem.price * item.quantity, 0)
+}
 </script>
 
 <template>
   <div class="restaurant-page">
-    <!-- 顶部导航 -->
+    <!-- Header -->
     <header class="header">
-      <button class="back-btn" @click="goBack">←</button>
-      <h1 class="title">{{ restaurantStore.currentRestaurant?.name || '商家详情' }}</h1>
-      <div class="header-spacer"></div>
+      <button class="header-back" @click="goBack">←</button>
+      <h1 class="header-title">{{ restaurantStore.currentRestaurant?.name || '商家详情' }}</h1>
     </header>
 
-    <!-- 商家信息 -->
+    <!-- Restaurant Info -->
     <div v-if="restaurantStore.currentRestaurant" class="restaurant-info">
       <div class="info-main">
-        <div class="logo">
+        <div class="restaurant-logo">
           <img v-if="restaurantStore.currentRestaurant.logo" :src="restaurantStore.currentRestaurant.logo" :alt="restaurantStore.currentRestaurant.name" />
           <span v-else>{{ restaurantStore.currentRestaurant.name.charAt(0) }}</span>
         </div>
-        <div class="info-text">
-          <h2>{{ restaurantStore.currentRestaurant.name }}</h2>
-          <p class="address">{{ restaurantStore.currentRestaurant.address }}</p>
-          <div class="meta">
-            <span>⭐ {{ restaurantStore.currentRestaurant.rating }}</span>
-            <span>月售 {{ restaurantStore.currentRestaurant.sales }}</span>
-            <span>{{ restaurantStore.currentRestaurant.deliveryTime }}分钟</span>
+        <div class="info-content">
+          <h2 class="restaurant-name">{{ restaurantStore.currentRestaurant.name }}</h2>
+          <div class="restaurant-meta">
+            <span class="meta-rating">
+              <span class="star">⭐</span>
+              {{ restaurantStore.currentRestaurant.rating }}
+            </span>
+            <span class="meta-divider">|</span>
+            <span class="meta-address">{{ restaurantStore.currentRestaurant.address }}</span>
           </div>
         </div>
       </div>
-      <div v-if="restaurantStore.discountInfo?.discounts?.length" class="discounts">
+      <div v-if="restaurantStore.discountInfo" class="discount-tags">
         <span
-          v-for="d in restaurantStore.discountInfo.discounts"
-          :key="d.id"
+          v-for="(info, key) in restaurantStore.discountInfo"
+          :key="key"
           class="discount-tag"
         >
-          满{{ d.threshold }}减{{ d.reduction }}
+          满{{ info.threshold }}减{{ info.discount }}
         </span>
       </div>
     </div>
 
-    <!-- 分类标签 -->
-    <div class="category-bar">
-      <button
-        v-for="cat in categories"
-        :key="cat"
-        :class="['cat-btn', { active: activeCategory === cat }]"
-        @click="activeCategory = cat"
-      >
-        {{ cat === 'all' ? '全部' : cat }}
-      </button>
+    <!-- Category Bar -->
+    <div class="category-section">
+      <div class="category-bar">
+        <button
+          v-for="cat in categories"
+          :key="cat"
+          :class="['category-btn', { active: activeCategory === cat }]"
+          @click="activeCategory = cat"
+        >
+          {{ cat === 'all' ? '全部' : cat }}
+        </button>
+      </div>
     </div>
 
-    <!-- 菜单列表 -->
-    <div class="menu-list">
-      <div
-        v-for="item in filteredMenuItems"
-        :key="item.id"
-        class="menu-item"
-      >
-        <div class="item-image">
-          <img v-if="item.image" :src="item.image" :alt="item.name" />
-          <span v-else class="image-placeholder">{{ item.name.charAt(0) }}</span>
-        </div>
-        <div class="item-info">
-          <h3 class="item-name">{{ item.name }}</h3>
-          <p v-if="item.description" class="item-desc">{{ item.description }}</p>
-          <div class="item-meta">
-            <span class="price">¥{{ item.price }}</span>
-            <span class="sales">月售 {{ item.sales }}</span>
+    <!-- Menu List -->
+    <div class="menu-section">
+      <div class="menu-list">
+        <div
+          v-for="(item, index) in filteredMenuItems"
+          :key="item.id"
+          class="menu-item"
+          :style="{ animationDelay: `${index * 30}ms` }"
+        >
+          <div class="item-image">
+            <img v-if="item.image || item.imageUrl" :src="item.image || item.imageUrl" :alt="item.name" />
+            <span v-else class="image-placeholder">{{ item.name.charAt(0) }}</span>
+          </div>
+          <div class="item-content">
+            <h3 class="item-name">{{ item.name }}</h3>
+            <p v-if="item.description" class="item-desc">{{ item.description }}</p>
+            <span class="item-price">¥{{ item.price }}</span>
+          </div>
+          <div class="item-actions">
+            <template v-if="cartStore.getItemCount(item.id) > 0">
+              <button class="qty-btn" @click="handleUpdateQuantity(item, -1)">−</button>
+              <span class="qty-value">{{ cartStore.getItemCount(item.id) }}</span>
+              <button class="qty-btn" @click="handleUpdateQuantity(item, 1)">+</button>
+            </template>
+            <button v-else class="add-btn" @click="handleAddToCart(item)">
+              <span class="add-icon">+</span>
+            </button>
           </div>
         </div>
-        <div class="item-actions">
-          <template v-if="cartStore.getItemCount(item.id) > 0">
-            <button class="qty-btn" @click="handleUpdateQuantity(item, -1)">-</button>
-            <span class="qty">{{ cartStore.getItemCount(item.id) }}</span>
-            <button class="qty-btn" @click="handleUpdateQuantity(item, 1)">+</button>
-          </template>
-          <button v-else class="add-btn" @click="handleAddToCart(item)">+</button>
+      </div>
+    </div>
+
+    <!-- Cart Bar -->
+    <div v-if="cartStore.totalCount > 0" class="cart-bar">
+      <div class="cart-left" @click="goToCart">
+        <div class="cart-icon-wrapper">
+          <span class="cart-icon">🛒</span>
+          <span class="cart-badge">{{ cartStore.totalCount }}</span>
         </div>
+        <span class="cart-price">¥{{ getCartTotal() }}</span>
       </div>
-    </div>
-
-    <!-- 凑单提示 -->
-    <div v-if="restaurantStore.discountInfo?.groupDiscounts?.length" class="group-tip">
-      <div class="tip-title">拼饭团满减</div>
-      <div
-        v-for="gd in restaurantStore.discountInfo.groupDiscounts"
-        :key="gd.id"
-        class="group-discount"
-      >
-        <span class="desc">{{ gd.description }}</span>
-        <span class="progress">{{ gd.currentCount }}/{{ gd.targetCount }}人</span>
-      </div>
-    </div>
-
-    <!-- 底部操作栏 -->
-    <div class="bottom-bar">
-      <div class="cart-summary" @click="goToCart">
-        <span class="cart-icon">🛒</span>
-        <span v-if="cartStore.totalCount > 0" class="cart-count">{{ cartStore.totalCount }}</span>
-        <span class="cart-price">¥{{ cartStore.totalPrice }}</span>
-      </div>
-      <button class="group-btn" @click="goToCreateGroup">发起拼饭团</button>
+      <button class="cart-btn" @click="goToCreateGroup">发起拼饭团</button>
     </div>
   </div>
 </template>
@@ -179,153 +175,209 @@ const goToCreateGroup = () => {
 .restaurant-page {
   min-height: 100vh;
   min-height: 100dvh;
-  background: #FFF9F5;
-  padding-bottom: 70px;
+  background: var(--bg-primary);
+  padding-bottom: 100px;
 }
 
+/* Header */
 .header {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  background: #fff;
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
-.back-btn {
-  width: 32px;
-  height: 32px;
-  background: #f5f5f5;
+.header-back {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
   border: none;
-  border-radius: 50%;
-  font-size: 18px;
+  border-radius: var(--radius-full);
+  font-size: 1rem;
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.title {
+.header-back:hover {
+  background: var(--color-accent);
+  color: var(--text-inverse);
+}
+
+.header-title {
   flex: 1;
   text-align: center;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
-.header-spacer {
-  width: 32px;
+.header-action {
+  width: 36px;
 }
 
+/* Restaurant Info */
 .restaurant-info {
-  padding: 16px;
-  background: #fff;
-  margin-bottom: 8px;
+  padding: var(--space-5);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .info-main {
   display: flex;
-  gap: 12px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
 }
 
-.logo {
-  width: 70px;
-  height: 70px;
-  border-radius: 8px;
+.restaurant-logo {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #FF6B35 0%, #FF8F6B 100%);
+  background: linear-gradient(135deg, var(--color-accent), #818CF8);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 24px;
+  color: var(--text-inverse);
+  font-size: 1.5rem;
   font-weight: 600;
 }
 
-.logo img {
+.restaurant-logo img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.info-text h2 {
-  font-size: 16px;
-  margin-bottom: 4px;
+.info-content {
+  flex: 1;
+  min-width: 0;
 }
 
-.address {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 6px;
+.restaurant-name {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
 }
 
-.meta {
+.restaurant-meta {
   display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: #666;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
-.discounts {
+.meta-rating {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 600;
+  color: var(--color-warning);
+}
+
+.meta-divider {
+  color: var(--border-medium);
+}
+
+.discount-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
+  gap: var(--space-2);
 }
 
 .discount-tag {
-  padding: 4px 8px;
-  background: #FFF3EF;
-  color: #FF6B35;
-  border-radius: 4px;
-  font-size: 12px;
+  padding: var(--space-1) var(--space-2);
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-error);
+  border-radius: var(--radius-sm);
+}
+
+/* Category Section */
+.category-section {
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .category-bar {
   display: flex;
-  gap: 8px;
-  padding: 12px 16px;
-  background: #fff;
+  gap: var(--space-2);
   overflow-x: auto;
-  margin-bottom: 8px;
+  hide-scrollbar: ;
 }
 
-.cat-btn {
-  padding: 6px 16px;
-  background: #f5f5f5;
-  color: #666;
+.category-btn {
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-tertiary);
   border: none;
-  border-radius: 16px;
-  font-size: 13px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
   white-space: nowrap;
   cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.cat-btn.active {
-  background: #FF6B35;
-  color: #fff;
+.category-btn:hover {
+  background: var(--border-light);
+}
+
+.category-btn.active {
+  background: var(--color-accent);
+  color: var(--text-inverse);
+}
+
+/* Menu Section */
+.menu-section {
+  padding: var(--space-4) var(--space-5);
 }
 
 .menu-list {
-  padding: 0 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .menu-item {
   display: flex;
-  gap: 12px;
-  padding: 16px;
-  background: #fff;
-  border-radius: 12px;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  animation: fadeIn 0.3s ease-out backwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .item-image {
-  width: 70px;
-  height: 70px;
-  border-radius: 8px;
+  width: 80px;
+  height: 80px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   flex-shrink: 0;
-  background: #f5f5f5;
+  background: linear-gradient(135deg, var(--bg-tertiary), var(--border-light));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -335,116 +387,103 @@ const goToCreateGroup = () => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform var(--transition-fast);
+}
+
+.item-image:hover img {
+  transform: scale(1.05);
 }
 
 .image-placeholder {
-  font-size: 20px;
-  color: #999;
+  font-size: 1.25rem;
+  color: var(--text-tertiary);
 }
 
-.item-info {
+.item-content {
   flex: 1;
   min-width: 0;
 }
 
 .item-name {
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 4px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
 }
 
 .item-desc {
-  font-size: 12px;
-  color: #999;
-  margin-bottom: 6px;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.item-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.price {
-  font-size: 16px;
-  color: #FF6B35;
-  font-weight: 500;
-}
-
-.sales {
-  font-size: 12px;
-  color: #999;
+.item-price {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-accent);
 }
 
 .item-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.qty-btn {
-  width: 28px;
-  height: 28px;
-  background: #FF6B35;
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.qty {
-  width: 24px;
-  text-align: center;
-  font-size: 14px;
+  gap: var(--space-2);
 }
 
 .add-btn {
   width: 28px;
   height: 28px;
-  background: #FF6B35;
-  color: #fff;
-  border: none;
-  border-radius: 50%;
-  font-size: 20px;
-  cursor: pointer;
-}
-
-.group-tip {
-  margin: 16px;
-  padding: 16px;
-  background: #FFF3EF;
-  border-radius: 12px;
-}
-
-.tip-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #FF6B35;
-  margin-bottom: 12px;
-}
-
-.group-discount {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  justify-content: center;
+  background: var(--color-accent);
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--text-inverse);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.desc {
-  font-size: 13px;
-  color: #333;
+.add-btn:hover {
+  background: #5558E3;
+  box-shadow: var(--shadow-glow);
 }
 
-.progress {
-  font-size: 12px;
-  color: #FF6B35;
+.qty-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.bottom-bar {
+.qty-btn:hover {
+  background: var(--color-accent);
+  color: var(--text-inverse);
+}
+
+.qty-value {
+  min-width: 24px;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Cart Bar */
+.cart-bar {
   position: fixed;
   bottom: 0;
   left: 0;
@@ -452,48 +491,62 @@ const goToCreateGroup = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  background: #fff;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  padding: var(--space-4) var(--space-5);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: var(--color-primary);
   z-index: 100;
 }
 
-.cart-summary {
+.cart-left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.cart-icon-wrapper {
+  position: relative;
 }
 
 .cart-icon {
-  font-size: 24px;
+  font-size: 1.5rem;
 }
 
-.cart-count {
-  width: 18px;
+.cart-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  min-width: 18px;
   height: 18px;
-  background: #FF6B35;
-  color: #fff;
-  border-radius: 50%;
-  font-size: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: var(--color-accent);
+  color: var(--text-inverse);
+  border-radius: var(--radius-full);
+  font-size: 0.625rem;
+  font-weight: 600;
 }
 
 .cart-price {
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-inverse);
 }
 
-.group-btn {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #FF6B35 0%, #FF8F6B 100%);
-  color: #fff;
+.cart-btn {
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-accent);
+  color: var(--text-inverse);
   border: none;
-  border-radius: 24px;
-  font-size: 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.cart-btn:hover {
+  background: #5558E3;
 }
 </style>

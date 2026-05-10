@@ -30,25 +30,25 @@ export class AuthService {
     };
   }
 
-  // 登录
   async login(
     phone: string,
     code: string,
   ): Promise<{
-    accessToken: string;
+    token: string;
     refreshToken: string;
     user: any;
   }> {
-    // 验证验证码
-    const stored = codeStore.get(phone);
-    if (!stored || stored.code !== code || stored.expiresAt < new Date()) {
-      throw new Error('验证码错误或已过期');
+    // 开发环境接受固定验证码 123456
+    if (process.env.NODE_ENV !== 'production' && code === '123456') {
+      // skip verification
+    } else {
+      const stored = codeStore.get(phone);
+      if (!stored || stored.code !== code || stored.expiresAt < new Date()) {
+        throw new Error('验证码错误或已过期');
+      }
+      codeStore.delete(phone);
     }
 
-    // 清除验证码
-    codeStore.delete(phone);
-
-    // 查找或创建用户
     let user = await this.userService.findByPhone(phone);
     if (!user) {
       user = await this.userService.create({
@@ -57,16 +57,14 @@ export class AuthService {
       });
     }
 
-    // 生成Token
     const payload = { sub: user.id, phone: user.phone };
-    const accessToken = this.jwtService.sign(payload);
+    const token = this.jwtService.sign(payload);
     const refreshToken = uuidv4();
 
-    // 存储刷新令牌
     await this.userService.saveRefreshToken(user.id, refreshToken);
 
     return {
-      accessToken,
+      token,
       refreshToken,
       user: {
         id: user.id,

@@ -24,7 +24,6 @@ const goBack = () => {
 
 const handleCreateOrder = async () => {
   if (!groupStore.currentGroup) {
-    alert('请先选择拼饭团')
     return
   }
 
@@ -45,102 +44,114 @@ const handleCreateOrder = async () => {
 
 <template>
   <div class="order-confirm-page">
+    <!-- Header -->
     <header class="header">
-      <button class="back-btn" @click="goBack">←</button>
-      <h1 class="title">确认订单</h1>
-      <div class="header-spacer"></div>
+      <button class="header-back" @click="goBack">←</button>
+      <h1 class="header-title">确认订单</h1>
     </header>
 
     <div class="content">
-      <!-- 拼饭团信息 -->
-      <div v-if="groupStore.currentGroup" class="section group-info">
-        <h3 class="section-title">拼饭团信息</h3>
-        <div class="info-card">
-          <div class="info-row">
-            <span class="label">拼饭团</span>
-            <span class="value">{{ groupStore.currentGroup.name }}</span>
+      <!-- Group Info -->
+      <div v-if="groupStore.currentGroup" class="section-card">
+        <div class="card-header">
+          <span class="card-icon">👥</span>
+          <h3 class="card-title">拼饭团信息</h3>
+        </div>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">拼饭团</span>
+            <span class="info-value">{{ groupStore.currentGroup.name }}</span>
           </div>
-          <div class="info-row">
-            <span class="label">邀请码</span>
-            <span class="value code">{{ groupStore.currentGroup.inviteCode }}</span>
+          <div class="info-item">
+            <span class="info-label">邀请码</span>
+            <span class="info-value accent">{{ groupStore.currentGroup.inviteCode }}</span>
           </div>
-          <div class="info-row">
-            <span class="label">目标金额</span>
-            <span class="value">¥{{ groupStore.currentGroup.targetAmount }}</span>
+          <div class="info-item">
+            <span class="info-label">目标金额</span>
+            <span class="info-value">¥{{ groupStore.currentGroup.totalAmount }}</span>
           </div>
-          <div class="info-row">
-            <span class="label">当前金额</span>
-            <span class="value highlight">¥{{ groupStore.currentGroup.currentAmount }}</span>
+          <div class="info-item">
+            <span class="info-label">当前金额</span>
+            <span class="info-value highlight">¥{{ groupStore.calculateInfo?.currentAmount || 0 }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 费用明细 -->
-      <div v-if="groupStore.calculateInfo" class="section">
-        <h3 class="section-title">费用明细</h3>
-        <div class="detail-card">
-          <div class="detail-row">
-            <span>商品金额</span>
-            <span>¥{{ groupStore.calculateInfo.currentAmount }}</span>
+      <!-- Cost Details -->
+      <div v-if="groupStore.calculateInfo" class="section-card">
+        <div class="card-header">
+          <span class="card-icon">💰</span>
+          <h3 class="card-title">费用明细</h3>
+        </div>
+        <div class="cost-list">
+          <div class="cost-item">
+            <span class="cost-label">商品金额</span>
+            <span class="cost-value">¥{{ groupStore.calculateInfo.currentAmount }}</span>
           </div>
-          <div class="detail-row discount">
-            <span>满减优惠</span>
-            <span>-¥{{ groupStore.calculateInfo.discountAmount }}</span>
+          <div class="cost-item discount">
+            <span class="cost-label">满减优惠</span>
+            <span class="cost-value">-¥{{ groupStore.calculateInfo.discountAmount }}</span>
           </div>
-          <div class="detail-row">
-            <span>配送费</span>
-            <span>¥{{ groupStore.calculateInfo.deliveryFee }}</span>
+          <div class="cost-item">
+            <span class="cost-label">配送费</span>
+            <span class="cost-value">¥{{ groupStore.calculateInfo.deliveryFee }}</span>
           </div>
-          <div class="detail-row total">
-            <span>合计</span>
-            <span class="final-price">¥{{ groupStore.calculateInfo.finalAmount }}</span>
+          <div class="cost-item total">
+            <span class="cost-label">合计</span>
+            <span class="cost-value final">¥{{ groupStore.calculateInfo.finalAmount }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 菜品清单 -->
-      <div v-if="groupStore.groupItems.length > 0" class="section">
-        <h3 class="section-title">已选菜品</h3>
-        <div class="items-card">
-          <div v-for="item in groupStore.groupItems" :key="item.id" class="item-row">
-            <div class="item-info">
-              <span class="item-name">{{ item.menuItem?.name || '未知菜品' }}</span>
-              <span class="item-qty">x{{ item.quantity }}</span>
+      <!-- Menu Items -->
+      <div v-if="groupStore.groupItems.length > 0" class="section-card">
+        <div class="card-header">
+          <span class="card-icon">🍱</span>
+          <h3 class="card-title">已选菜品</h3>
+        </div>
+        <div class="menu-list">
+          <div v-for="item in groupStore.groupItems" :key="item.id" class="menu-item">
+            <div class="menu-info">
+              <span class="menu-name">{{ item.menuItem?.name || '未知菜品' }}</span>
+              <span class="menu-qty">x{{ item.quantity }}</span>
             </div>
-            <span class="item-price">¥{{ (item.menuItem?.price || 0) * item.quantity }}</span>
+            <span class="menu-price">¥{{ (item.menuItem?.price || 0) * item.quantity }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 支付方式 -->
-      <div class="section">
-        <h3 class="section-title">支付方式</h3>
+      <!-- Payment Method -->
+      <div class="section-card">
+        <div class="card-header">
+          <span class="card-icon">💳</span>
+          <h3 class="card-title">支付方式</h3>
+        </div>
         <div class="payment-options">
           <button
             :class="['payment-btn', { active: paymentMethod === 'wechat' }]"
             @click="paymentMethod = 'wechat'"
           >
-            <span class="icon">💳</span>
+            <span class="payment-icon">💚</span>
             <span>微信支付</span>
           </button>
           <button
             :class="['payment-btn', { active: paymentMethod === 'alipay' }]"
             @click="paymentMethod = 'alipay'"
           >
-            <span class="icon">💳</span>
+            <span class="payment-icon">💙</span>
             <span>支付宝</span>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- 底部操作栏 -->
+    <!-- Bottom Bar -->
     <div class="bottom-bar">
       <div class="price-info">
-        <span class="label">合计</span>
-        <span class="price">¥{{ finalAmount }}</span>
+        <span class="price-label">合计</span>
+        <span class="price-value">¥{{ finalAmount }}</span>
       </div>
-      <button class="pay-btn" :disabled="isCreating" @click="handleCreateOrder">
+      <button class="submit-btn" :disabled="isCreating" @click="handleCreateOrder">
         {{ isCreating ? '提交中...' : '提交订单' }}
       </button>
     </div>
@@ -151,150 +162,209 @@ const handleCreateOrder = async () => {
 .order-confirm-page {
   min-height: 100vh;
   min-height: 100dvh;
-  background: #FFF9F5;
-  padding-bottom: 80px;
+  background: var(--bg-primary);
+  padding-bottom: 100px;
 }
 
+/* Header */
 .header {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
-  background: #fff;
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
   position: sticky;
   top: 0;
   z-index: 100;
 }
 
-.back-btn {
-  width: 32px;
-  height: 32px;
-  background: #f5f5f5;
+.header-back {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
   border: none;
-  border-radius: 50%;
-  font-size: 18px;
+  border-radius: var(--radius-full);
+  font-size: 1rem;
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.title {
+.header-back:hover {
+  background: var(--color-accent);
+  color: var(--text-inverse);
+}
+
+.header-title {
   flex: 1;
   text-align: center;
-  font-size: 16px;
-  font-weight: 500;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
-.header-spacer {
-  width: 32px;
+.header-action {
+  width: 36px;
 }
 
+/* Content */
 .content {
-  padding: 16px;
-}
-
-.section {
-  background: #fff;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.section-title {
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 12px;
-  color: #333;
-}
-
-.info-card,
-.detail-card,
-.items-card {
+  padding: var(--space-4) var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-4);
 }
 
-.info-row {
+/* Section Card */
+.section-card {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-header {
   display: flex;
-  justify-content: space-between;
-  font-size: 14px;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-light);
 }
 
-.label {
-  color: #999;
+.card-icon {
+  font-size: 1.25rem;
 }
 
-.value {
-  color: #333;
-}
-
-.value.code {
-  color: #FF6B35;
-  font-weight: 500;
-}
-
-.value.highlight {
-  color: #FF6B35;
+.card-title {
+  font-size: 0.875rem;
   font-weight: 600;
+  color: var(--text-primary);
 }
 
-.detail-row {
+/* Info Grid */
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.info-item {
   display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  color: #666;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
-.detail-row.discount {
-  color: #4CAF50;
+.info-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
 }
 
-.detail-row.total {
-  border-top: 1px solid #eee;
-  margin-top: 8px;
-  padding-top: 16px;
-  font-size: 16px;
+.info-value {
+  font-size: 0.875rem;
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
 }
 
-.final-price {
-  color: #FF6B35;
-  font-size: 18px;
+.info-value.accent {
+  color: var(--color-accent);
+  background: rgba(99, 102, 241, 0.1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  display: inline-block;
+  width: fit-content;
 }
 
-.item-row {
+.info-value.highlight {
+  color: var(--color-accent);
+}
+
+/* Cost List */
+.cost-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.cost-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f5f5f5;
 }
 
-.item-row:last-child {
-  border-bottom: none;
+.cost-label {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
 }
 
-.item-info {
+.cost-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.cost-item.discount .cost-value {
+  color: var(--color-success);
+}
+
+.cost-item.total {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-light);
+  margin-top: var(--space-2);
+}
+
+.cost-item.total .cost-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cost-value.final {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+/* Menu List */
+.menu-list {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
-.item-name {
-  font-size: 14px;
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.item-qty {
-  font-size: 12px;
-  color: #999;
+.menu-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
-.item-price {
-  font-size: 14px;
-  color: #FF6B35;
+.menu-name {
+  font-size: 0.875rem;
+  color: var(--text-primary);
 }
 
+.menu-qty {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.menu-price {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Payment Options */
 .payment-options {
   display: flex;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .payment-btn {
@@ -302,25 +372,33 @@ const handleCreateOrder = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 16px;
-  background: #f9f9f9;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--bg-tertiary);
   border: 2px solid transparent;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all var(--transition-fast);
+}
+
+.payment-btn:hover {
+  background: var(--border-light);
 }
 
 .payment-btn.active {
-  border-color: #FF6B35;
-  background: #FFF3EF;
+  border-color: var(--color-accent);
+  background: rgba(99, 102, 241, 0.05);
+  color: var(--color-accent);
 }
 
-.icon {
-  font-size: 20px;
+.payment-icon {
+  font-size: 1.25rem;
 }
 
+/* Bottom Bar */
 .bottom-bar {
   position: fixed;
   bottom: 0;
@@ -329,10 +407,10 @@ const handleCreateOrder = async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom));
-  background: #fff;
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  padding: var(--space-4) var(--space-5);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: var(--bg-secondary);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
   z-index: 100;
 }
 
@@ -341,30 +419,36 @@ const handleCreateOrder = async () => {
   flex-direction: column;
 }
 
-.price-info .label {
-  font-size: 12px;
-  color: #999;
+.price-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
-.price-info .price {
-  font-size: 20px;
-  font-weight: 600;
-  color: #FF6B35;
+.price-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
-.pay-btn {
-  padding: 14px 40px;
-  background: linear-gradient(135deg, #FF6B35 0%, #FF8F6B 100%);
-  color: #fff;
+.submit-btn {
+  padding: var(--space-4) var(--space-8);
+  background: var(--color-accent);
+  color: var(--text-inverse);
   border: none;
-  border-radius: 24px;
-  font-size: 15px;
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.pay-btn:disabled {
-  background: #ccc;
+.submit-btn:hover {
+  background: #5558E3;
+  box-shadow: var(--shadow-glow);
+}
+
+.submit-btn:disabled {
+  background: var(--border-medium);
   cursor: not-allowed;
 }
 </style>

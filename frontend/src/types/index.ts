@@ -58,6 +58,7 @@ export interface MenuItem {
   description?: string
   price: number
   image?: string
+  imageUrl?: string
   category: string
   sales: number
 }

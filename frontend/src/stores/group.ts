@@ -30,8 +30,8 @@ export const useGroupStore = defineStore('group', () => {
     isLoading.value = true
     try {
       const response = await createGroup(data)
-      currentGroup.value = response.data
-      return response.data
+      currentGroup.value = response.data.data
+      return response.data.data
     } finally {
       isLoading.value = false
     }
@@ -42,13 +42,13 @@ export const useGroupStore = defineStore('group', () => {
     isLoading.value = true
     try {
       const response = await getGroups({ type })
-      // 后端直接返回数组
+      // 后端返回 { code, message, data: [...], timestamp }
       if (type === 'created') {
-        createdGroups.value = response.data
+        createdGroups.value = response.data.data
       } else {
-        joinedGroups.value = response.data
+        joinedGroups.value = response.data.data
       }
-      total.value = response.data.length
+      total.value = response.data.data.length
     } finally {
       isLoading.value = false
     }
@@ -59,7 +59,7 @@ export const useGroupStore = defineStore('group', () => {
     isLoading.value = true
     try {
       const response = await getNearbyGroups()
-      nearbyGroups.value = response.data
+      nearbyGroups.value = response.data.data
     } finally {
       isLoading.value = false
     }
@@ -70,7 +70,7 @@ export const useGroupStore = defineStore('group', () => {
     isLoading.value = true
     try {
       const response = await getGroupById(id)
-      currentGroup.value = response.data
+      currentGroup.value = response.data.data
     } finally {
       isLoading.value = false
     }
@@ -81,8 +81,8 @@ export const useGroupStore = defineStore('group', () => {
     isLoading.value = true
     try {
       const response = await joinGroup(data)
-      currentGroup.value = response.data
-      return response.data
+      currentGroup.value = response.data.data
+      return response.data.data
     } finally {
       isLoading.value = false
     }
@@ -115,7 +115,7 @@ export const useGroupStore = defineStore('group', () => {
     isLoading.value = true
     try {
       const response = await getGroupItems(id)
-      groupItems.value = response.data
+      groupItems.value = response.data.data
     } finally {
       isLoading.value = false
     }
@@ -126,7 +126,7 @@ export const useGroupStore = defineStore('group', () => {
     isLoading.value = true
     try {
       const response = await addGroupItem(id, data)
-      return response.data
+      return response.data.data
     } finally {
       isLoading.value = false
     }
@@ -147,7 +147,7 @@ export const useGroupStore = defineStore('group', () => {
     isLoading.value = true
     try {
       const response = await calculateGroup(id)
-      calculateInfo.value = response.data
+      calculateInfo.value = response.data.data
     } finally {
       isLoading.value = false
     }

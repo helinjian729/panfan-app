@@ -7,6 +7,7 @@ import { UserModule } from './modules/user/user.module';
 import { RestaurantModule } from './modules/restaurant/restaurant.module';
 import { GroupModule } from './modules/group/group.module';
 import { OrderModule } from './modules/order/order.module';
+import { AddressModule } from './modules/address/address.module';
 import { GroupGateway } from './gateways/group.gateway';
 
 @Module({
@@ -43,6 +44,7 @@ import { GroupGateway } from './gateways/group.gateway';
     RestaurantModule,
     GroupModule,
     OrderModule,
+    AddressModule,
   ],
   providers: [GroupGateway],
 })
